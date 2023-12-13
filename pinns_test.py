@@ -1,5 +1,6 @@
 from PIL import Image
 
+import os
 import numpy as np
 import torch
 import torch.nn as nn
@@ -121,6 +122,10 @@ def plot_learning(epoch_list,
 
 
 def train_from_data(oscillator: Oscillator):
+    plots_dir = "./plots"
+    if not os.path.exists(plots_dir):
+        os.makedirs(plots_dir)
+
     # generate data
     # get the analytical solution over the full domain
     nx = 500
@@ -128,7 +133,7 @@ def train_from_data(oscillator: Oscillator):
     y = oscillator.exact_solution(x).view(-1, 1)
 
     # slice out a small number of points from the LHS of the domain
-    n_data = 20
+    n_data = 50
     idx = [int(z) for z in np.linspace(0, nx - 1, n_data)]
     x_data = x[idx]
     y_data = y[idx]
@@ -159,7 +164,7 @@ def train_from_data(oscillator: Oscillator):
 
             yh = model(x).detach()
 
-            file_name = "plots/nn_%.8i.png" % (epoch + 1)
+            file_name = f"{plots_dir}/nn_{epoch + 1:8i}.png"
             plot_result(x_exact=x, y_exact=y,
                         xp=x_data, yh=yh,
                         epoch=epoch, file_name=file_name)
@@ -170,13 +175,16 @@ def train_from_data(oscillator: Oscillator):
 
 
 def train_pinns(oscillator: Oscillator):
+    plots_dir = "./plots"
+    if not os.path.exists(plots_dir):
+        os.makedirs(plots_dir)
     # get the analytical solution over the full domain
     n_pts = 500
     x_exact = torch.linspace(0, 1, n_pts).view(-1, 1).requires_grad_(True)
     y_exact = oscillator.exact_solution(x_exact).view(-1, 1)
 
     # sample locations over the problem domain
-    n_col_pts = 30
+    n_col_pts = 100
     collocation_pts = torch.linspace(0, 1,
                                      n_col_pts,
                                      requires_grad=True).view(-1, 1)
@@ -193,7 +201,7 @@ def train_pinns(oscillator: Oscillator):
     n_epoch = 50_000
 
     def lr_multiplier(epoch):
-        return 1 ** (epoch / n_epoch)
+        return 0.1 ** (epoch / n_epoch)
 
     scheduler = lr_scheduler.LambdaLR(optimizer,
                                       lr_lambda=lr_multiplier)
@@ -267,7 +275,7 @@ def train_pinns(oscillator: Oscillator):
 
 if __name__ == '__main__':
     torch.manual_seed(123)
-    oscillator = Oscillator(d=2, w0=40)
+    oscillator = Oscillator(d=2, w0=20)
     compute_pinn = True
     compute_from_data = False
     if compute_pinn:
